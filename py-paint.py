@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 class MSPaint:
     def __init__(self, root):
         self.root = root
-        self.root.title("py-paint")
+        self.root.title("MS Paint Clone")
 
         # Default settings
         self.brush_color = "black"
@@ -14,7 +14,6 @@ class MSPaint:
         self.eraser_mode = False
         self.tool = "brush"
         self.start_x, self.start_y = None, None
-        self.saved_colors = []
         self.font_name = "Arial"
         self.font_size = 20
 
@@ -31,11 +30,12 @@ class MSPaint:
         self.canvas.bind("<ButtonPress-1>", self.start_draw)
         self.canvas.bind("<ButtonRelease-1>", self.end_draw)
 
+        # Fullscreen toggle
+        self.root.bind("<F11>", self.toggle_fullscreen)
+
         # Toolbar
         self.toolbar = tk.Frame(root)
         self.toolbar.pack(fill=tk.X)
-
-        # Create buttons
         self.create_tool_buttons()
 
     def create_tool_buttons(self):
@@ -48,7 +48,6 @@ class MSPaint:
             ("Oval", lambda: self.select_tool("oval")),
             ("Text", lambda: self.select_tool("text")),
             ("Color", self.choose_color),
-            ("Save Color", self.save_color),
             ("Clear", self.clear_canvas),
             ("Save", self.save_image),
             ("Load", self.load_image)
@@ -72,11 +71,6 @@ class MSPaint:
         self.font_size_slider = tk.Scale(self.toolbar, from_=10, to=50, orient=tk.HORIZONTAL)
         self.font_size_slider.set(self.font_size)
         self.font_size_slider.pack(side=tk.LEFT)
-
-        # Saved Colors
-        self.color_frame = tk.Frame(self.toolbar)
-        self.color_frame.pack(side=tk.LEFT, padx=10)
-        self.update_saved_colors()
 
     def paint(self, event):
         """Handles freehand drawing"""
@@ -117,25 +111,6 @@ class MSPaint:
             self.brush_color = color
             self.eraser_mode = False
 
-    def save_color(self):
-        """Saves the selected color for later use"""
-        if self.brush_color not in self.saved_colors:
-            self.saved_colors.append(self.brush_color)
-        self.update_saved_colors()
-
-    def update_saved_colors(self):
-        """Updates the UI for saved colors"""
-        for widget in self.color_frame.winfo_children():
-            widget.destroy()
-        for color in self.saved_colors:
-            btn = tk.Button(self.color_frame, bg=color, width=2, command=lambda c=color: self.set_color(c))
-            btn.pack(side=tk.LEFT)
-
-    def set_color(self, color):
-        """Sets a saved color"""
-        self.brush_color = color
-        self.eraser_mode = False
-
     def select_tool(self, tool):
         """Sets the active tool"""
         self.tool = tool
@@ -147,7 +122,10 @@ class MSPaint:
         if text:
             font_tuple = (self.font_name, self.font_size_slider.get())
             self.canvas.create_text(x, y, text=text, fill=self.brush_color, font=font_tuple)
-            self.draw.text((x, y), text, fill=self.brush_color, font=font.Font(family=self.font_name, size=self.font_size_slider.get()))
+            
+            # Draw text on the PIL image
+            img_font = font.Font(family=self.font_name, size=self.font_size_slider.get())
+            self.draw.text((x, y), text, fill=self.brush_color, font=img_font)
 
     def set_font(self, font_name):
         """Updates the font selection"""
@@ -178,6 +156,13 @@ class MSPaint:
             self.draw = ImageDraw.Draw(self.image)
             self.canvas.img = ImageTk.PhotoImage(img)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.canvas.img)
+
+    def toggle_fullscreen(self, event=None):
+        """Toggles fullscreen mode without glitches"""
+        state = not self.root.attributes("-fullscreen")
+        self.root.attributes("-fullscreen", state)
+        if not state:
+            self.root.geometry("800x600")  # Reset window size when exiting fullscreen
 
 # Run the application
 root = tk.Tk()
